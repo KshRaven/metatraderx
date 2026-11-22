@@ -272,6 +272,32 @@ def test_install_windows(monkeypatch, tmp_path):
         installer.install(4, True)
 
 
+def test_install_python_embed_fallback(monkeypatch, tmp_path):
+    import zipfile as zf
+
+    _sys(monkeypatch)
+    pre = tmp_path / "pre"
+    z = tmp_path / "e.zip"
+    with zf.ZipFile(z, "w") as f:
+        f.writestr("python.exe", b"")
+        f.writestr("python312._pth", "python312.zip\n.\n#import site\n")
+    runs = []
+
+    def run(args, prefix, show=False):
+        runs.append([str(x) for x in args])
+        if len(runs) == 1:
+            raise SetupError("c0000135")
+
+    def get(url, dest, show):
+        dest.write_bytes(z.read_bytes() if url.endswith(".zip") else b"")
+
+    monkeypatch.setattr(installer, "_wine_run", run)
+    monkeypatch.setattr(installer, "_get", get)
+    assert installer._install_python(pre, False) == pre / "drive_c" / "Python312" / "python.exe"
+    assert "import site" in (pre / "drive_c" / "Python312" / "python312._pth").read_text()
+    assert runs[1][1].endswith("get-pip.py")
+
+
 def test_install_macos(monkeypatch, tmp_path):
     _sys(monkeypatch, mac=True)
     monkeypatch.setattr(installer, "download", lambda v, k: tmp_path / "x.dmg")

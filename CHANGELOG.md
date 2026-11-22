@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+## 0.1.4
+- `mtx setup` falls back to the embeddable 64-bit Python with pip when the Windows Python installer cannot run under Wine.
+
 ## 0.1.3
 
 ## 0.1.2

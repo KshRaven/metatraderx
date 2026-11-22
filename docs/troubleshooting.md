@@ -22,6 +22,7 @@ It shows the system, Python, Wine, the selected terminal, the saved settings and
 | `AuthError` | the token does not match the server's `--auth` |
 | `a token is required when binding to a non-loopback address` | add `--auth auto` (or a token) when using `--host 0.0.0.0` |
 | `mtx install` stops at a certificate error or a timeout | the download is retried with `curl`; if that fails too, check the network or proxy, or use `mtx download` on another machine |
+| `wine: could not load kernel32.dll, status c0000135` during `mtx setup` | the Windows Python installer starts with a 32-bit launcher that this Wine prefix cannot run; setup then installs the embeddable 64-bit Python with pip instead |
 | `mtx install` hangs under Wine | stop leftovers with `wineserver -k` and retry; Wine steps now time out after 10 minutes |
 | `mtx display` on Windows shows a window inside a window | Windows shares the whole desktop; open the page from another device |
 | `mtx display` asks for Xpra | install it from xpra.org on Windows; Linux and macOS offer to install it |

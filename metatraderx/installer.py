@@ -11,6 +11,7 @@ import sys
 import tempfile
 import urllib.error
 import urllib.request
+import zipfile
 from pathlib import Path
 
 from . import config, wineenv
@@ -35,6 +36,8 @@ PATHS = {
 }
 PYTHON_URL = "https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe"
 PYTHON_DIR = "C:\\Python312"
+PYTHON_EMBED_URL = "https://www.python.org/ftp/python/3.12.8/python-3.12.8-embed-amd64.zip"
+GET_PIP_URL = "https://bootstrap.pypa.io/get-pip.py"
 _PKG = {
     "apt-get": (["apt-get", "install", "-y"], ["wine", "xvfb"]),
     "dnf": (["dnf", "install", "-y"], ["wine", "xorg-x11-server-Xvfb"]),
@@ -307,6 +310,29 @@ def _packages(py: Path, prefix: Path, show: bool) -> None:
     _wine_run([py, "-c", "import MetaTrader5"], prefix)
 
 
+def _download_to(url: str, name: str, show: bool) -> Path:
+    dest = config.home() / "downloads" / name
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if not dest.is_file():
+        try:
+            _get(url, dest, show)
+        except (urllib.error.URLError, OSError, ValueError) as e:
+            raise SetupError(f"could not download {name}: {e}") from e
+    return dest
+
+
+def _install_python_embed(prefix: Path, target: Path, show: bool) -> None:
+    """Install the embeddable 64-bit Python plus pip; used when the installer cannot run (its launcher is 32-bit)."""
+    z = _download_to(PYTHON_EMBED_URL, PYTHON_EMBED_URL.rsplit("/", 1)[-1], show)
+    target.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(z) as f:
+        f.extractall(target)
+    for pth in target.glob("python*._pth"):
+        pth.write_text(pth.read_text(encoding="utf-8").replace("#import site", "import site"), encoding="utf-8")
+    pip = _download_to(GET_PIP_URL, "get-pip.py", show)
+    _wine_run([target / "python.exe", pip], prefix, show)
+
+
 def _install_python(prefix: Path, show: bool) -> Path:
     """Install the default Windows Python (3.12) into the prefix and return its python.exe."""
     exe = config.home() / "downloads" / PYTHON_URL.rsplit("/", 1)[-1]
@@ -316,8 +342,11 @@ def _install_python(prefix: Path, show: bool) -> Path:
             _get(PYTHON_URL, exe, show)
         except (urllib.error.URLError, OSError, ValueError) as e:
             raise SetupError(f"could not download Windows Python: {e}") from e
-    _wine_run([exe, "/quiet", "InstallAllUsers=0", f"TargetDir={PYTHON_DIR}", "PrependPath=0", "Include_test=0", "Include_launcher=0"], prefix, show)
     own = prefix / "drive_c" / PYTHON_DIR.split("\\", 1)[1] / "python.exe"
+    try:
+        _wine_run([exe, "/quiet", "InstallAllUsers=0", f"TargetDir={PYTHON_DIR}", "PrependPath=0", "Include_test=0", "Include_launcher=0"], prefix, show)
+    except SetupError:
+        _install_python_embed(prefix, own.parent, show)
     py = own if own.is_file() else wineenv.wine_python(prefix)
     if not py:
         raise SetupError("Windows Python did not install into the prefix")

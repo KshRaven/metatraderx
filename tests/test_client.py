@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import time
 from collections import namedtuple
 from datetime import datetime, timedelta, timezone
 
@@ -211,12 +210,13 @@ def test_cacheable_rules(tmp_path):
 
 
 def test_cache_ttl_for_static(tmp_path):
-    mt = MetaTrader(cache=True, cache_dir=tmp_path, cache_ttl=0.05)
+    mt = MetaTrader(cache=True, cache_dir=tmp_path, cache_ttl=60)
     mt._backend = Rec()
     mt.symbols_total()
     mt.symbols_total()
     assert [c[0] for c in mt._backend.calls].count("symbols_total") == 1
-    time.sleep(0.1)
+    mt._cache._db.execute("UPDATE c SET ts = ts - 1000")
+    mt._cache._db.commit()
     mt.symbols_total()
     assert [c[0] for c in mt._backend.calls].count("symbols_total") == 2
 
