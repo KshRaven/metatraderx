@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import platform
 import shutil
+import ssl
 import subprocess
 import sys
 import tempfile
@@ -67,7 +68,38 @@ def candidate_urls(version: int, key: str | None = None) -> list[str]:
     return urls
 
 
+def _curl(url: str, dest: Path, show: bool) -> None:
+    exe = shutil.which("curl.exe" if IS_WIN else "curl")
+    if not exe:
+        raise ValueError("curl is not available")
+    part = dest.with_name(dest.name + ".part")
+    cmd = [exe, "-fL", "--retry", "2", "--connect-timeout", "30", "-A", UA, "-o", str(part), url]
+    if not show:
+        cmd.insert(1, "-s")
+    if subprocess.call(cmd) != 0 or not part.exists() or part.stat().st_size == 0:
+        part.unlink(missing_ok=True)
+        raise ValueError("curl download failed")
+    with open(part, "rb") as f:
+        head = f.read(64).lstrip().lower()
+    if head.startswith((b"<!doctype", b"<html")):
+        part.unlink(missing_ok=True)
+        raise ValueError("unexpected HTML response")
+    part.replace(dest)
+
+
 def _get(url: str, dest: Path, show: bool) -> None:
+    try:
+        _fetch(url, dest, show)
+    except urllib.error.URLError as e:
+        if isinstance(e.reason, (ssl.SSLError, TimeoutError)):
+            _curl(url, dest, show)
+        else:
+            raise
+    except TimeoutError:
+        _curl(url, dest, show)
+
+
+def _fetch(url: str, dest: Path, show: bool) -> None:
     req = urllib.request.Request(url, headers={"User-Agent": UA})
     with urllib.request.urlopen(req, timeout=60) as r:
         if "text/html" in r.headers.get("Content-Type", ""):

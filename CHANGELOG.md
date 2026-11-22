@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.1.1
+- Documentation deploys from `main` only, since the `github-pages` environment rejects tag refs.
+- Installer downloads fall back to `curl` when Python fails TLS verification or times out.
+- Fixed a broken documentation link that failed the docs build.
+
 ## 0.1.0
 - `import metatraderx as mt5` for Windows, Linux and macOS, with a local terminal backend (official package on Windows, an automatic Wine worker on Linux and macOS) and a remote backend for `mtx serve`.
 - Added the `mtx` command: install, download, setup, terminal, login, info, symbols, symbol, fetch, serve, display, cache, config, mt4 and doctor.

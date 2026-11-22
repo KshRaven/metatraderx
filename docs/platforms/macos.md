@@ -20,7 +20,7 @@ somewhere else.
 ## Not set up
 
 Until `mtx setup` has run, `initialize()` returns `False` with a `SetupWarning` and does not fall back to cached data; see
-[Linux](linux.md#when-setup-has-not-been-run).
+[Linux](linux.md#setup).
 
 ## Display
 

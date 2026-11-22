@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import socket
 import threading
+from pathlib import Path
 from datetime import datetime, timezone
 
 import numpy as np
@@ -240,7 +241,7 @@ def test_install_bridge_nothing_found(tmp_path, monkeypatch):
     exe = tmp_path / "t" / "terminal.exe"
     exe.parent.mkdir()
     exe.write_bytes(b"")
-    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path / "home"))
     monkeypatch.setattr(config, "IS_WIN", False)
     with pytest.raises(SetupError, match="no MQL4"):
         install_bridge(str(exe))
