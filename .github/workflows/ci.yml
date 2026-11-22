@@ -37,7 +37,7 @@ jobs:
       - run: python -c "import metatraderx, metatraderx.cli, metatraderx.server, metatraderx.display"
       - run: ruff check .
       - run: pytest -q --cov --cov-report=term --cov-report=xml
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.14'
         with:
           name: coverage
@@ -55,7 +55,7 @@ jobs:
       - run: python scripts/pypimgr/pypimgr.py build
         env:
           PYPIMGR_NO_VENV: "1"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dist
           path: .cache/pypimgr/metatraderx/artifacts/*
