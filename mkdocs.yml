@@ -1,0 +1,43 @@
+site_name: MetaTraderX
+site_description: Universal MetaTrader 5 and MetaTrader 4 Python API
+site_url: https://kshraven.github.io/metatraderx/
+repo_url: https://github.com/KshRaven/metatraderx
+theme:
+  name: material
+nav:
+  - Home: index.md
+  - Installation: install.md
+  - Python API:
+      - Using the package: python/index.md
+      - Connecting: python/connecting.md
+      - The MetaTrader class: python/metatrader-class.md
+      - Account and terminal: python/account-terminal.md
+      - Market data: python/market-data.md
+      - Trading and history: python/trading.md
+      - Constants: python/constants.md
+      - Result types: python/types.md
+      - Errors: python/errors.md
+  - Modes:
+      - Cache: modes/cache.md
+      - Offline mode: modes/offline.md
+      - Verbosity: modes/verbosity.md
+  - Server:
+      - Hosting a server: server/hosting.md
+      - Connecting to a server: server/clients.md
+  - Terminal display: display.md
+  - Command line:
+      - Overview: cli/index.md
+      - Install: cli/install.md
+      - Terminal: cli/terminal.md
+      - Data: cli/data.md
+      - Tools: cli/tools.md
+  - Platforms:
+      - Windows: platforms/windows.md
+      - Linux: platforms/linux.md
+      - macOS: platforms/macos.md
+      - MetaTrader 4: platforms/mt4.md
+  - Settings: reference/environment.md
+  - Troubleshooting: troubleshooting.md
+validation:
+  links:
+    anchors: warn

@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+
+# Build and packaging
+build/
+dist/
+wheels/
+site/
+.cache/
+.logs/
+*pypimgr_cache/
+
+# Tests and tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Downloads and logs
+*.exe
+*.msi
+*.dmg
+*.pkg
+*.part
+*.log
+wget-log*
+downloads/
+logs/
+
+# Data files
+*.csv
+*.json
+*.jsonl
+*.sqlite3
+*.zip
+data/
+
+# Secrets
+.env
+.env.*
+!.env.example
+!.env.release.example
+.pypirc
+*.pem
+*.key
+*.token
+secrets/
+
+# Release helpers
+*commit.txt
+*.diff
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

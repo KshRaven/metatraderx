@@ -1,0 +1,7 @@
+include README.md LICENSE CHANGELOG.md
+include metatraderx/py.typed
+recursive-include metatraderx/mql *
+prune tests
+prune scripts
+prune docs
+prune examples
