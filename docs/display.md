@@ -38,8 +38,9 @@ a supported release or Xpra from [xpra.org](https://xpra-org.github.io/xpra/Down
 Missing packages are offered one at a time. Administrator or `sudo` permission is requested only when a package manager
 needs it, and `-y` accepts the questions.
 
-- **Windows** shares the desktop terminal (`xpra shadow`), so what you see in the browser is the terminal window on that
-  machine.
+- **Windows** shares the whole desktop (`xpra shadow`); Xpra has no per-window mode there. The terminal opens on that
+  desktop, and opening the page on the same machine shows the browser inside itself. Open it from another device
+  (`--host 0.0.0.0` with a password, or `--tunnel`). The desktop must stay unlocked, so a server needs an active session.
 - **Linux and macOS** start a private virtual screen and run the terminal inside it under Wine, so nothing appears on the
   machine's own display.
 

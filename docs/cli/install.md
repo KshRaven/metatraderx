@@ -15,18 +15,26 @@ mtx install 5 -y       # accept the questions
 | `4`, `5` | MetaTrader version; default `5` |
 | `--method auto\|script\|wine` | Linux only, see below |
 | `--prefix PATH` | Wine prefix to install into (Linux and macOS, `wine` method) |
+| `--dir PATH` | install into `PATH/MetaTrader4` or `PATH/MetaTrader5` instead of the default folder (Windows, Linux, macOS; not with the Linux `script` method) |
 | `-y`, `--yes` | answer yes to the questions |
 | `--winedebug LEVEL` | Wine log output, before the command: `mtx --winedebug fixme install` |
 
 | System | What happens |
 | --- | --- |
-| Windows | the installer is downloaded and started; Windows asks for administrator permission |
-| macOS | the `.dmg` is downloaded and the app copied to `/Applications` |
-| Linux, `wine` | Wine is installed with your package manager when missing, then the Windows installer runs silently on a virtual screen (Xvfb) in `~/.mt5` or `~/.mt4`, or in `--prefix`; no window opens |
+| Windows | the installer is downloaded and runs without a window; Windows asks for administrator permission once (run from an elevated shell to avoid the prompt). The terminal the setup starts is closed afterwards |
+| macOS | the `.dmg` is downloaded and the app copied to `/Applications`, or to `--dir` |
+| Linux, `wine` | Wine is installed with your package manager when missing, then the Windows installer runs silently on a virtual screen (Xvfb) in `~/.mt5` or `~/.mt4`, or in `--prefix`; no window opens. Wine Mono and Gecko prompts are switched off, so nothing waits for input, and each Wine step times out instead of hanging |
 | Linux, `auto` | the same as `wine` |
 | Linux, `script` | the official MetaQuotes script is run; it installs Wine, opens windows and asks for your password |
 
 Permission questions are asked before anything that needs administrator rights.
+
+A folder given with `--dir` is saved in the `search` setting, so `mtx terminal list` finds the terminal afterwards. A
+download that fails Python's TLS verification or times out is retried with `curl` when it is installed.
+
+```
+mtx install 4 --dir D:\MT          # D:\MT\MetaTrader4
+```
 
 ## mtx uninstall
 
@@ -48,7 +56,9 @@ mtx uninstall 1 --prefix      # the whole Wine prefix (Linux, macOS)
 | `--dry-run` | list what would be removed |
 | `-y`, `--yes` | do not ask for confirmation |
 
-On Windows the terminal's own `uninstall.exe` runs first. The install folder and shortcuts are removed; data and the Wine prefix are kept unless asked.
+The install folder and shortcuts are removed; data and the Wine prefix are kept unless asked. On Windows the terminal's own
+uninstaller is not opened: the files and the Windows uninstall entries are removed by one hidden script that asks for
+administrator permission once, so it also works on a headless machine. Anything that could not be removed is listed.
 
 ## mtx download
 

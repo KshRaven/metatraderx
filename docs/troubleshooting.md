@@ -21,6 +21,9 @@ It shows the system, Python, Wine, the selected terminal, the saved settings and
 | orders rejected on a server | the server runs with `--read-only` |
 | `AuthError` | the token does not match the server's `--auth` |
 | `a token is required when binding to a non-loopback address` | add `--auth auto` (or a token) when using `--host 0.0.0.0` |
+| `mtx install` stops at a certificate error or a timeout | the download is retried with `curl`; if that fails too, check the network or proxy, or use `mtx download` on another machine |
+| `mtx install` hangs under Wine | stop leftovers with `wineserver -k` and retry; Wine steps now time out after 10 minutes |
+| `mtx display` on Windows shows a window inside a window | Windows shares the whole desktop; open the page from another device |
 | `mtx display` asks for Xpra | install it from xpra.org on Windows; Linux and macOS offer to install it |
 | offline call returns `None` | that request was never cached. Fetch it once online with the [cache](modes/cache.md) on |
 | the MetaTrader 4 call is not supported | the bridge covers a subset; see [MetaTrader 4](platforms/mt4.md#supported) |

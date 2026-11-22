@@ -18,7 +18,8 @@ mtx doctor
 
 `mtx install` uses the official MetaQuotes script on Ubuntu, Debian, Mint and Fedora, and a plain Wine install elsewhere;
 see [Install commands](../cli/install.md#mtx-install). Packages are installed with `apt`, `dnf`, `pacman` or `zypper`
-after asking, and `sudo` is requested only for that.
+after asking, and `sudo` is requested only for that. `--dir PATH` installs into `PATH/MetaTrader5` (or `MetaTrader4`).
+Wine Mono and Gecko are not needed and are never installed, so setup does not wait on their prompts.
 
 ```python
 import metatraderx as mtx

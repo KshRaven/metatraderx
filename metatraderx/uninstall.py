@@ -6,6 +6,7 @@ import os
 import shutil
 import stat
 import subprocess
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -16,7 +17,7 @@ from .installer import ask
 
 __all__ = ["Plan", "plan", "uninstall"]
 
-_PROTECTED = {"program files", "program files (x86)", "windows", "users", "drive_c", "applications", "opt", "usr", "home"}
+_PROTECTED = {"program files", "program files (x86)", "windows", "users", "drive_c", "applications", "opt", "usr", "home", "etc", "var", "bin", "srv", "system", "library"}
 
 
 @dataclass
@@ -51,7 +52,7 @@ def _bundle(exe: Path) -> Path | None:
 
 def _check_folder(folder: Path) -> None:
     home = Path.home().resolve()
-    if folder.resolve() in (home, Path(folder.anchor)) or folder.name.lower() in _PROTECTED or len(folder.resolve().parts) < 3:
+    if folder.resolve() in (home, Path(folder.anchor)) or folder.name.lower() in _PROTECTED or len(folder.resolve().parts) < 2:
         raise SetupError(f"refusing to remove {folder}: it is not a terminal folder")
 
 
@@ -145,7 +146,7 @@ def plan(terminal: str | os.PathLike | None = None, data: bool = False, prefix: 
         exe=exe,
         folder=folder,
         prefix=pre,
-        uninstaller=un if IS_WIN and un.is_file() else None,
+        uninstaller=None,
         shortcuts=_shortcuts(folder, pre),
         data=_data_dirs(folder, pre) if data else [],
         remove_prefix=prefix,
@@ -191,6 +192,48 @@ def _rm(path: Path) -> None:
         shutil.rmtree(path, onerror=fix)
 
 
+def _is_admin() -> bool:
+    try:
+        import ctypes
+
+        return bool(ctypes.windll.shell32.IsUserAnAdmin())
+    except (AttributeError, OSError):
+        return False
+
+
+def _remove_windows(paths: list[Path], folder: Path) -> None:
+    """Delete the paths and the folder's Windows uninstall entries without any window, asking for elevation once."""
+    q = lambda s: str(s).replace("'", "''")  # noqa: E731
+    lines = [f"Remove-Item -LiteralPath '{q(x)}' -Recurse -Force -ErrorAction SilentlyContinue" for x in paths]
+    lines += [
+        f"$f = '{q(folder)}'",
+        "foreach ($k in 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall', 'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall') {",
+        "  Get-ChildItem $k -ErrorAction SilentlyContinue | ForEach-Object {",
+        "    $p = Get-ItemProperty $_.PSPath",
+        "    foreach ($v in $p.UninstallString, $p.InstallLocation) {",
+        "      if ($v -and ([string]$v).IndexOf($f, [StringComparison]::OrdinalIgnoreCase) -ge 0) { Remove-Item -LiteralPath $_.PSPath -Recurse -Force -ErrorAction SilentlyContinue; break }",
+        "    }",
+        "  }",
+        "}",
+    ]
+    fd, name = tempfile.mkstemp(suffix=".ps1", prefix="mtx-rm-")
+    with os.fdopen(fd, "w", encoding="utf-8-sig") as f:
+        f.write("\n".join(lines))
+    hidden = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    base = ["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", name]
+    if _is_admin():
+        cmd = base
+    else:
+        ps = f"Start-Process powershell -ArgumentList '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File','{q(name)}' -Verb RunAs -WindowStyle Hidden -Wait"
+        cmd = ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps]
+    try:
+        subprocess.run(cmd, stdin=subprocess.DEVNULL, creationflags=hidden, timeout=300, check=False)
+    except subprocess.TimeoutExpired:
+        pass
+    finally:
+        Path(name).unlink(missing_ok=True)
+
+
 def uninstall(
     terminal: str | os.PathLike | None = None,
     yes: bool = False,
@@ -201,8 +244,8 @@ def uninstall(
 ) -> list[Path]:
     """Uninstall a MetaTrader 4 or 5 terminal, including a broker's own build, and return what was removed.
 
-    The install folder and the terminal's shortcuts are removed. On Windows the terminal's own uninstall.exe runs
-    first when it has one, so the Windows uninstall entry goes away too. The data folder (MQL files, history) is kept
+    The install folder and the terminal's shortcuts are removed. On Windows this happens without opening the
+    terminal's own uninstaller (one elevation prompt), and its Windows uninstall entry is removed too. The data folder (MQL files, history) is kept
     unless data is true, and a Wine prefix is kept unless prefix is true. Nothing is deleted without confirmation
     unless yes is true.
 
@@ -222,8 +265,6 @@ def uninstall(
     if dry_run:
         return todo
     print("This permanently removes:\n  " + "\n  ".join(map(str, todo)))
-    if p.uninstaller:
-        print(f"and runs {p.uninstaller} first")
     if prefix and p.prefix:
         others = [t["path"] for t in discovery.find_terminals() if t["prefix"] == str(p.prefix) and Path(t["path"]) != p.exe]
         if others:
@@ -234,13 +275,15 @@ def uninstall(
         if not stop:
             raise SetupError(f"{p.exe.name} is running; close it or use --stop")
         _stop(p)
-    if p.uninstaller and not prefix:
-        subprocess.call([str(p.uninstaller)], cwd=str(p.folder))
-    removed: list[Path] = []
-    for path in todo:
-        if path.exists() or path.is_symlink():
+    removed: list[Path] = [x for x in todo if x.exists() or x.is_symlink()]
+    if IS_WIN:
+        _remove_windows(removed, p.folder)
+        left = [x for x in removed if x.exists()]
+        if left:
+            raise SetupError("could not remove:\n  " + "\n  ".join(map(str, left)))
+    else:
+        for path in removed:
             _rm(path)
-            removed.append(path)
     cfg = config.load()
     if cfg.get("terminal") and Path(str(cfg["terminal"])) == p.exe:
         for k in ("terminal", "version"):

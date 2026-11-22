@@ -15,6 +15,7 @@ If a terminal is already installed, skip this step. Otherwise let `mtx` download
 ```
 mtx install          # MetaTrader 5
 mtx install 4        # MetaTrader 4
+mtx install --dir D:\MT   # custom folder: D:\MT\MetaTrader5
 ```
 
 `mtx download` only downloads the installer. See [install, download and setup](cli/install.md) for the options and for

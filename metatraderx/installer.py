@@ -225,22 +225,80 @@ def _screen(yes: bool) -> None:
 
 
 def _wine_run(args: list, prefix: Path, show: bool = False) -> None:
-    r = wineenv.run_wine(args, prefix, check=False, headless=True, capture_output=not show, text=True)
+    try:
+        r = wineenv.run_wine(args, prefix, check=False, headless=True, stop=True, timeout=600, capture_output=not show, text=True)
+    except subprocess.TimeoutExpired:
+        raise SetupError(f"wine {' '.join(map(str, args))} timed out")
     if r.returncode != 0:
         raise SetupError(f"wine {' '.join(map(str, args))} failed: {(r.stderr or r.stdout or '').strip()[-400:]}")
 
 
-def _install_terminal(exe: Path, prefix: Path, version: int, show: bool = True) -> Path:
+def _install_terminal(exe: Path, prefix: Path, version: int, show: bool = True, directory: Path | None = None) -> Path:
     """Run the official setup silently on a virtual screen, then stop the terminal it launches; returns terminal64.exe."""
     pats = [f"Program Files{x}/MetaTrader {version}/terminal{y}.exe" for x in ("", " (x86)") for y in ("64", "")]
-    found = lambda: next((h for pat in pats for h in sorted((prefix / "drive_c").glob(pat))), None)  # noqa: E731
+    found = lambda: (directory and _terminal_in(directory)) or next((h for pat in pats for h in sorted((prefix / "drive_c").glob(pat))), None)  # noqa: E731
+    args = [exe, "/auto"] + ([f"/path:Z:{str(directory).replace('/', chr(92))}"] if directory else [])
     try:
-        wineenv.run_wine([exe, "/auto"], prefix, check=False, headless=True, stop=True, timeout=900, capture_output=not show, text=True, cwd=str(exe.parent))
+        wineenv.run_wine(args, prefix, check=False, headless=True, stop=True, timeout=900, capture_output=not show, text=True, cwd=str(exe.parent))
     except subprocess.TimeoutExpired:
         pass
     t = found()
     if not t:
         raise SetupError(f"MetaTrader {version} was not found in {prefix} after the installer ran")
+    return t
+
+
+def _is_admin() -> bool:
+    try:
+        import ctypes
+
+        return bool(ctypes.windll.shell32.IsUserAnAdmin())
+    except (AttributeError, OSError):
+        return False
+
+
+def _terminal_in(d: Path) -> Path | None:
+    return next((t for n in ("terminal64.exe", "terminal.exe") if (t := d / n).is_file()), None)
+
+
+def _remember(directory: Path) -> None:
+    cfg = config.load()
+    cur = [x for x in str(cfg.get("search") or "").split(os.pathsep) if x]
+    if str(directory) not in cur:
+        cfg["search"] = os.pathsep.join([*cur, str(directory)])
+        config.save(cfg)
+
+
+def _windows_terminal(version: int, directory: Path | None = None) -> Path | None:
+    if directory:
+        return _terminal_in(directory)
+    roots = [Path(v) for k in ("ProgramFiles", "ProgramFiles(x86)") if (v := os.environ.get(k))]
+    names = ("terminal64.exe", "terminal.exe")
+    return next((t for r in roots for n in names if (t := r / f"MetaTrader {version}" / n).is_file()), None)
+
+
+def _stop_windows_terminal(t: Path) -> None:
+    ps = f"Get-CimInstance Win32_Process | Where-Object {{ $_.ExecutablePath -eq '{t}' }} | ForEach-Object {{ Stop-Process -Id $_.ProcessId -Force }}"
+    subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps], capture_output=True, stdin=subprocess.DEVNULL, timeout=60, check=False)
+
+
+def _install_windows(exe: Path, version: int, directory: Path | None = None) -> Path:
+    """Run the official setup without a window and stop the terminal it launches; returns the installed terminal."""
+    hidden = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    if _is_admin():
+        cmd = f'"{exe}" /auto' + (f' /path:"{directory}"' if directory else "")
+    else:
+        args = "'/auto'" + (f""", '/path:"{directory}"'""" if directory else "")
+        ps = f"Start-Process -FilePath '{exe}' -ArgumentList @({args}) -Verb RunAs -WindowStyle Hidden -Wait"
+        cmd = ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps]
+    try:
+        subprocess.run(cmd, cwd=str(exe.parent), stdin=subprocess.DEVNULL, creationflags=hidden, timeout=900, check=False)
+    except subprocess.TimeoutExpired:
+        pass
+    t = _windows_terminal(version, directory)
+    if not t:
+        raise SetupError(f"MetaTrader {version} was not found in {directory or 'Program Files'} after the installer ran")
+    _stop_windows_terminal(t)
     return t
 
 
@@ -294,18 +352,26 @@ def setup_wine_python(prefix: str | Path, yes: bool = False, show: bool = True) 
     return py
 
 
-def install(version: int = 5, yes: bool = False, prefix: str | Path | None = None, method: str = "auto") -> None:
+def install(version: int = 5, yes: bool = False, prefix: str | Path | None = None, method: str = "auto", directory: str | Path | None = None) -> None:
     """Install the terminal for this operating system.
 
     Linux methods: auto and wine run the official Windows installer silently under Wine on a virtual screen (no
     window opens; the prefix defaults to ~/.mt5 or ~/.mt4); script runs MetaQuotes' own shell script instead.
     """
     key = os_key()
+    dest_dir = Path(directory).expanduser().resolve() if directory else None
+    if dest_dir and not dest_dir.name.lower().startswith("metatrader"):
+        dest_dir = dest_dir / f"MetaTrader{version}"
+    if dest_dir and method == "script" and key == "linux":
+        raise SetupError("a custom directory is not supported with the script method")
     if key == "windows":
         exe = download(version, key)
-        if not ask("The installer will ask for administrator permission. Start it now?", yes):
+        if not ask("The installer needs administrator permission. Start it now?", yes):
             return
-        subprocess.call([str(exe), "/auto"], cwd=str(exe.parent))
+        t = _install_windows(exe, version, dest_dir)
+        if dest_dir:
+            _remember(dest_dir)
+        print(f"installed {t}")
         return
     if key == "macos":
         dmg = download(version, key)
@@ -314,8 +380,11 @@ def install(version: int = 5, yes: bool = False, prefix: str | Path | None = Non
         try:
             apps = list(mnt.glob("*.app"))
             if apps:
-                dest = Path("/Applications") / apps[0].name
+                dest = (dest_dir or Path("/Applications")) / apps[0].name
+                dest.parent.mkdir(parents=True, exist_ok=True)
                 subprocess.check_call(["cp", "-R", str(apps[0]), str(dest)])
+                if dest_dir:
+                    _remember(dest_dir)
                 print(f"installed {dest}")
             else:
                 subprocess.call(["open", str(mnt)])
@@ -337,7 +406,9 @@ def install(version: int = 5, yes: bool = False, prefix: str | Path | None = Non
     exe = download(version, "windows")
     pre.mkdir(parents=True, exist_ok=True)
     _wine_run(["wineboot", "-u"], pre)
-    t = _install_terminal(exe, pre, version)
+    t = _install_terminal(exe, pre, version, directory=dest_dir) if dest_dir else _install_terminal(exe, pre, version)
+    if dest_dir:
+        _remember(dest_dir)
     print(f"installed {t}")
 
 

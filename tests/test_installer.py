@@ -254,13 +254,22 @@ def test_install_windows(monkeypatch, tmp_path):
     _sys(monkeypatch, win=True)
     monkeypatch.setattr(installer, "download", lambda v, k: tmp_path / "setup.exe")
     ran = []
-    monkeypatch.setattr(subprocess, "call", lambda c, **k: ran.append(c))
+    t = tmp_path / "terminal64.exe"
+    monkeypatch.setattr(subprocess, "run", lambda c, **k: ran.append((c, k)))
+    monkeypatch.setattr(installer, "_windows_terminal", lambda v, d=None: t)
+    monkeypatch.setattr(installer, "_is_admin", lambda: True)
     monkeypatch.setattr(installer, "ask", lambda *a, **k: False)
     installer.install(5, False)
     assert not ran
     monkeypatch.setattr(installer, "ask", lambda *a, **k: True)
     installer.install(5, True)
-    assert ran[0][1] == "/auto"
+    assert "/auto" in ran[0][0] and ran[0][1]["stdin"] is subprocess.DEVNULL
+    installer.install(5, True, directory=tmp_path / "mt")
+    assert f'/path:"{(tmp_path / "mt" / "MetaTrader5").resolve()}"' in ran[-2][0]
+    assert str((tmp_path / "mt" / "MetaTrader5").resolve()) in installer.config.load()["search"]
+    monkeypatch.setattr(installer, "_windows_terminal", lambda v, d=None: None)
+    with pytest.raises(SetupError):
+        installer.install(4, True)
 
 
 def test_install_macos(monkeypatch, tmp_path):

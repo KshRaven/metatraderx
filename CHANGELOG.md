@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.1.2
+- `mtx install --dir` installs into `MetaTrader4` or `MetaTrader5` under the given folder on Windows, Linux and macOS; the folder is saved for terminal discovery.
+- Windows install runs without a window, asks for elevation once, times out, and closes the terminal the setup launches.
+- Windows uninstall no longer opens the MetaTrader uninstaller; files and uninstall entries are removed by one hidden elevated script, and leftovers are reported.
+- `mtx uninstall` accepts terminal folders directly under a drive root, such as `D:\MT4`.
+- Wine setup no longer hangs on the Mono and Gecko prompts; Wine steps run without stdin and time out.
+- `mtx display` on Windows warns that the shared desktop mirrors itself when viewed on the same machine.
+
 ## 0.1.1
 - Documentation deploys from `main` only, since the `github-pages` environment rejects tag refs.
 - Installer downloads fall back to `curl` when Python fails TLS verification or times out.

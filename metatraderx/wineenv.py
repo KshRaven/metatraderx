@@ -63,6 +63,7 @@ def base_env(prefix: str | os.PathLike | None = None) -> dict:
     """A copy of the environment with WINEPREFIX set and Wine debug output set by winedebug()."""
     env = os.environ.copy()
     env["WINEDEBUG"] = winedebug()
+    env.setdefault("WINEDLLOVERRIDES", "mscoree,mshtml=d")
     if prefix:
         env["WINEPREFIX"] = str(prefix)
     return env
@@ -159,6 +160,7 @@ def run_wine(args: list, prefix: str | os.PathLike | None, check: bool = True, h
     if not wine:
         raise SetupError("wine was not found; run: mtx setup")
     env = base_env(prefix)
+    kw.setdefault("stdin", subprocess.DEVNULL)
     extra, proc = ensure_display(headless)
     env.update(extra)
     try:

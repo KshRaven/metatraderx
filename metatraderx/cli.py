@@ -53,7 +53,7 @@ def _selected(a: argparse.Namespace) -> str:
 # -- commands -----------------------------------------------------------------------------------------------------
 def c_install(a: argparse.Namespace) -> int:
     """mtx install: download and install the terminal."""
-    installer.install(a.version, a.yes, a.prefix, a.method)
+    installer.install(a.version, a.yes, a.prefix, a.method, a.dir)
     return 0
 
 
@@ -403,6 +403,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("version", nargs="?", type=int, choices=[4, 5], default=5)
     p.add_argument("--method", choices=["auto", "script", "wine"], default="auto")
     p.add_argument("--prefix", help="Wine prefix (Linux, wine method)")
+    p.add_argument("--dir", help="install folder instead of the default (Windows, Linux and macOS)")
     p.add_argument("-y", "--yes", action="store_true")
     p.set_defaults(fn=c_install)
 

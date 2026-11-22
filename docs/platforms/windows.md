@@ -12,7 +12,8 @@ mtx terminal select 0
 mtx doctor
 ```
 
-The installer asks Windows for administrator permission. A terminal on any drive is found; see
+The installer runs without a window and asks Windows for administrator permission once. Use `--dir D:\MT` for another
+folder. A terminal on any drive is found; see
 [Terminal commands](../cli/terminal.md).
 
 ```python

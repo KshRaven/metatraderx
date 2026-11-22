@@ -7,7 +7,7 @@ macOS works the same way as [Linux](linux.md): the terminal is a Wine build, and
 
 ```
 pip install metatraderx
-mtx install                # downloads the .dmg and copies the app to /Applications
+mtx install                # downloads the .dmg and copies the app to /Applications (--dir PATH for another folder)
 mtx setup
 mtx terminal list
 mtx terminal select 0

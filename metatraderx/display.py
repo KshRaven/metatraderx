@@ -384,6 +384,8 @@ def serve_display(
         common.append("--tcp-auth=env")
     child: subprocess.Popen | None = None
     if IS_WIN:
+        if is_loopback(host):
+            print("note: on Windows the whole desktop is shared, so open this page from another device; on this machine it mirrors itself", file=sys.stderr)
         child = subprocess.Popen([terminal], cwd=str(Path(terminal).parent))
         cmd = [xpra, "shadow", *common]
     else:
