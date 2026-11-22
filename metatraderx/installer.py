@@ -381,7 +381,8 @@ def install(version: int = 5, yes: bool = False, prefix: str | Path | None = Non
             apps = list(mnt.glob("*.app"))
             if apps:
                 dest = (dest_dir or Path("/Applications")) / apps[0].name
-                dest.parent.mkdir(parents=True, exist_ok=True)
+                if dest_dir:
+                    dest.parent.mkdir(parents=True, exist_ok=True)
                 subprocess.check_call(["cp", "-R", str(apps[0]), str(dest)])
                 if dest_dir:
                     _remember(dest_dir)

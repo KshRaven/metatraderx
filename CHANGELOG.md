@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.3
+
 ## 0.1.2
 - `mtx install --dir` installs into `MetaTrader4` or `MetaTrader5` under the given folder on Windows, Linux and macOS; the folder is saved for terminal discovery.
 - Windows install runs without a window, asks for elevation once, times out, and closes the terminal the setup launches.
